@@ -2,8 +2,10 @@
 
 package wnlm
 
-// NLMNetworkCategory represents the enum values of:
-// https://learn.microsoft.com/en-us/windows/win32/api/netlistmgr/ne-netlistmgr-nlm_network_category
+// NLMNetworkCategory represents the NLM_NETWORK_CATEGORY enumeration
+// (a set of flags that specify the category type of a network).
+//
+// https://learn.microsoft.com/en-us/windows/win32/api/netlistmgr/ne-netlistmgr-nlm_network_category.
 type NLMNetworkCategory byte
 
 const (
