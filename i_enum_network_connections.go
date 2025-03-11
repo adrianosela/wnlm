@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	"golang.org/x/sys/windows"
 )
 
 // IEnumNetworkConnections represents an enumeration of the Windows INetworkConnections type as defined in
@@ -15,7 +14,8 @@ import (
 //
 // The Windows Global Unique Identifier (GUID) for this interface is DCB00006-570F-4A9B-8D69-199FDBA5723B.
 type IEnumNetworkConnections interface {
-	FindInterfaceByGUID(guid *windows.GUID) (INetworkConnection, bool, error)
+	ForEach(func(INetworkConnection) bool)
+	Size() int
 	Release()
 }
 
@@ -45,19 +45,18 @@ func NewNetworkConnections(idispatch *ole.IDispatch) (IEnumNetworkConnections, e
 	return &iEnumNetworkConnections{conns: conns}, nil
 }
 
-// FindInterfaceByGUID returns the INetworkConnection object for a network interface by GUID.
-func (nc *iEnumNetworkConnections) FindInterfaceByGUID(guid *windows.GUID) (INetworkConnection, bool, error) {
+// ForEach iterates over each INetworkConnection represented by IEnumNetworkConnections.
+func (nc *iEnumNetworkConnections) ForEach(do func(INetworkConnection) bool) {
 	for _, networkConnection := range nc.conns {
-		adapterGUID, err := networkConnection.GetAdapterId()
-		if err != nil {
-			return nil, false, fmt.Errorf("failed to get adapter id for network connection: %v", err)
+		if keepGoing := do(networkConnection); !keepGoing {
+			return
 		}
-		if adapterGUID.String() != guid.String() {
-			continue
-		}
-		return networkConnection, true, nil
 	}
-	return nil, false, nil
+}
+
+// Size returns the number of INetworkConnection objects in the IEnumNetworkConnections.
+func (nc *iEnumNetworkConnections) Size() int {
+	return len(nc.conns)
 }
 
 // Release releases the IEnumNetworkConnections object.

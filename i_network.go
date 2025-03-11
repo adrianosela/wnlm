@@ -4,7 +4,6 @@ package wnlm
 
 import (
 	"fmt"
-	"unsafe"
 
 	"github.com/go-ole/go-ole"
 )
@@ -14,12 +13,20 @@ import (
 //
 // The Windows Global Unique Identifier (GUID) for this interface is DCB00002-570F-4A9B-8D69-199FDBA5723B.
 type INetwork interface {
-	GetName() (string, error)
+	// TODO: implement:
+	// - properties: get_IsConnected, getIsConnectedToInternet
+	// - methods: GetNetworkId, GetTimeCreatedAndConnected
+
+	GetCategory() (NLMNetworkCategory, error)
+	GetConnectivity() (NLMConnectivity, error)
 	GetDescription() (string, error)
 	GetDomainType() (NLMDomainType, error)
-	SetDomainType(NLMDomainType) error
-	GetCategory() (NLMNetworkCategory, error)
+	GetName() (string, error)
+	GetNetworkConnections() (IEnumNetworkConnections, error)
 	SetCategory(NLMNetworkCategory) error
+	SetDescription(string) error
+	SetName(string) error
+
 	Release()
 }
 
@@ -28,90 +35,104 @@ type iNetwork struct {
 	idispatch *ole.IDispatch
 }
 
-// iNetworkVTable represents the INetwork interface's VTable.
-type iNetworkVTable struct {
-	ole.IDispatchVtbl
-	GetName                    uintptr
-	SetName                    uintptr
-	GetDescription             uintptr
-	SetDescription             uintptr
-	GetNetworkId               uintptr
-	GetDomainType              uintptr
-	GetNetworkConnections      uintptr
-	GetTimeCreatedAndConnected uintptr
-	Get_IsConnectedToInternet  uintptr
-	Get_IsConnected            uintptr
-	GetConnectivity            uintptr
-	GetCategory                uintptr
-	SetCategory                uintptr
-}
-
-// GetName gets the name of a network.
-func (n *iNetwork) GetName() (string, error) {
-	resp, err := n.idispatch.CallMethod("GetName")
+// GetCategory gets the category of this network.
+func (n *iNetwork) GetCategory() (NLMNetworkCategory, error) {
+	res, err := n.idispatch.CallMethod("GetCategory")
 	if err != nil {
-		return "", fmt.Errorf("failed to call GetName method: %v", err)
+		return -1, fmt.Errorf("failed to call GetCategory method: %v", err)
 	}
-	return resp.ToString(), nil
+	networkCategoryAny := res.Value()
+	networkCategoryInt32, ok := networkCategoryAny.(int32)
+	if !ok {
+		return -1, fmt.Errorf("unexpected result type for GetCategory method: expected int32 but got %T", networkCategoryAny)
+	}
+	return NLMNetworkCategory(networkCategoryInt32), nil
 }
 
-// GetDescription gets the description of a network.
+// GetConnectivity gets the connectivity of this network.
+func (n *iNetwork) GetConnectivity() (NLMConnectivity, error) {
+	res, err := n.idispatch.CallMethod("GetConnectivity")
+	if err != nil {
+		return -1, fmt.Errorf("failed to call GetConnectivity method: %v", err)
+	}
+	networkConnectivityAny := res.Value()
+	networkConnectivityInt32, ok := networkConnectivityAny.(int32)
+	if !ok {
+		return -1, fmt.Errorf("unexpected result type for GetConnectivity method: expected int32 but got %T", networkConnectivityAny)
+	}
+	return NLMConnectivity(networkConnectivityInt32), nil
+}
+
+// GetDescription gets the description/alias of this network.
 func (n *iNetwork) GetDescription() (string, error) {
-	resp, err := n.idispatch.CallMethod("GetDescription")
+	res, err := n.idispatch.CallMethod("GetDescription")
 	if err != nil {
 		return "", fmt.Errorf("failed to call GetDescription method: %v", err)
 	}
-	return resp.ToString(), nil
+	return res.ToString(), nil
 }
 
-// GetDomainType gets the domain type of a network.
+// GetDomainType gets the domain type of this network.
 func (n *iNetwork) GetDomainType() (NLMDomainType, error) {
-	var domainType byte
-	hr, _, _ := globalSyscaller.SyscallN(
-		(*iNetworkVTable)(unsafe.Pointer(n.idispatch.RawVTable)).GetDomainType,
-		uintptr(unsafe.Pointer(n.idispatch)),
-		uintptr(unsafe.Pointer(&domainType)),
-	)
-	if hr < 0 {
-		return 0, ole.NewError(hr)
+	res, err := n.idispatch.CallMethod("GetDomainType")
+	if err != nil {
+		return -1, fmt.Errorf("failed to call GetDomainType method: %v", err)
 	}
-	return NLMDomainType(domainType), nil
+	domainTypeAny := res.Value()
+	domainTypeInt32, ok := domainTypeAny.(int32)
+	if !ok {
+		return -1, fmt.Errorf("unexpected result type for GetDomainType method: expected int32 but got %T", domainTypeAny)
+	}
+	return NLMDomainType(domainTypeInt32), nil
 }
 
-// SetDomainType sets the domain type on a network.
-func (n *iNetwork) SetDomainType(domainType NLMDomainType) (err error) {
-	hr, _, _ := globalSyscaller.SyscallN(
-		(*iNetworkVTable)(unsafe.Pointer(n.idispatch.RawVTable)).SetCategory,
-		uintptr(unsafe.Pointer(n.idispatch)),
-		uintptr(domainType))
-	if hr < 0 {
-		return ole.NewError(hr)
+// GetName gets the name of this network.
+func (n *iNetwork) GetName() (string, error) {
+	res, err := n.idispatch.CallMethod("GetName")
+	if err != nil {
+		return "", fmt.Errorf("failed to call GetName method: %v", err)
+	}
+	return res.ToString(), nil
+}
+
+// GetNetworkConnections returns the network connections for this network.
+func (n *iNetwork) GetNetworkConnections() (IEnumNetworkConnections, error) {
+	res, err := n.idispatch.CallMethod("GetNetworkConnections")
+	if err != nil {
+		return nil, fmt.Errorf("failed to call GetNetworkConnections on INetwork object: %v", err)
+	}
+	idispatch := res.ToIDispatch()
+	if idispatch == nil {
+		return nil, fmt.Errorf("result of GetNetworkConnections is not an IDispatch, got type %T", res.Value())
+	}
+	defer idispatch.Release()
+	networkConnections, err := NewNetworkConnections(idispatch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NetworkConnections from *ole.VARIANT: %v", err)
+	}
+	return networkConnections, nil
+}
+
+// SetCategory sets the category of this network.
+func (n *iNetwork) SetCategory(category NLMNetworkCategory) (err error) {
+	if _, err := n.idispatch.CallMethod("SetCategory", int32(category)); err != nil {
+		return fmt.Errorf("failed to call SetCategory method with value %d: %v", int32(category), err)
 	}
 	return nil
 }
 
-// GetCategory gets the category of a network.
-func (n *iNetwork) GetCategory() (NLMNetworkCategory, error) {
-	var category byte
-	hr, _, _ := globalSyscaller.SyscallN(
-		(*iNetworkVTable)(unsafe.Pointer(n.idispatch.RawVTable)).GetCategory,
-		uintptr(unsafe.Pointer(n.idispatch)),
-		uintptr(unsafe.Pointer(&category)),
-	)
-	if hr < 0 {
-		return 0, ole.NewError(hr)
+// SetDescription sets the description/alias of this network.
+func (n *iNetwork) SetDescription(descr string) error {
+	if _, err := n.idispatch.CallMethod("SetDescription", descr); err != nil {
+		return fmt.Errorf("failed to call SetDescription method with value %s: %v", descr, err)
 	}
-	return NLMNetworkCategory(category), nil
+	return nil
 }
 
-// SetCategory sets the category on a network.
-func (n *iNetwork) SetCategory(category NLMNetworkCategory) (err error) {
-	hr, _, _ := globalSyscaller.SyscallN(
-		(*iNetworkVTable)(unsafe.Pointer(n.idispatch.RawVTable)).SetCategory,
-		uintptr(unsafe.Pointer(n.idispatch)),
-		uintptr(category))
-	if hr < 0 {
-		return ole.NewError(hr)
+// SetName sets the name of this network.
+func (n *iNetwork) SetName(name string) error {
+	if _, err := n.idispatch.CallMethod("SetName", name); err != nil {
+		return fmt.Errorf("failed to call SetName method with value %s: %v", name, err)
 	}
 	return nil
 }
