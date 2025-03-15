@@ -4,6 +4,7 @@ package wnlm
 
 import (
 	"fmt"
+	"syscall"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -48,7 +49,7 @@ func NewNetworkConnectionFromVariant(variant *ole.VARIANT) (INetworkConnection, 
 // GetAdapterId returns the adapter GUID for a network connection.
 func (nc *iNetworkConnection) GetAdapterId() (*ole.GUID, error) {
 	var guid ole.GUID
-	hr, _, _ := globalSyscaller.SyscallN(
+	hr, _, _ := syscall.SyscallN(
 		(*iNetworkConnectionVTable)(unsafe.Pointer(nc.idispatch.RawVTable)).GetAdapterId,
 		uintptr(unsafe.Pointer(nc.idispatch)),
 		uintptr(unsafe.Pointer(&guid)),
@@ -62,7 +63,7 @@ func (nc *iNetworkConnection) GetAdapterId() (*ole.GUID, error) {
 // GetAdapterId returns the INetwork for a network connection.
 func (nc *iNetworkConnection) GetNetwork() (INetwork, error) {
 	var idispatch *ole.IDispatch
-	hr, _, _ := globalSyscaller.SyscallN(
+	hr, _, _ := syscall.SyscallN(
 		(*iNetworkConnectionVTable)(unsafe.Pointer(nc.idispatch.RawVTable)).GetNetwork,
 		uintptr(unsafe.Pointer(nc.idispatch)),
 		uintptr(unsafe.Pointer(&idispatch)),

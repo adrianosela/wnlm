@@ -4,8 +4,13 @@ package wnlm
 
 import (
 	"fmt"
+	"syscall"
+	"time"
+	"unsafe"
 
+	"github.com/adrianosela/wnlm/pkg/wintime"
 	"github.com/go-ole/go-ole"
+	"golang.org/x/sys/windows"
 )
 
 // INetwork represents the Windows INetwork type as defined in
@@ -13,19 +18,19 @@ import (
 //
 // The Windows Global Unique Identifier (GUID) for this interface is DCB00002-570F-4A9B-8D69-199FDBA5723B.
 type INetwork interface {
-	// TODO: implement:
-	// - properties: get_IsConnected, getIsConnectedToInternet
-	// - methods: GetNetworkId, GetTimeCreatedAndConnected
-
-	GetCategory() (NLMNetworkCategory, error)
-	GetConnectivity() (NLMConnectivity, error)
-	GetDescription() (string, error)
-	GetDomainType() (NLMDomainType, error)
 	GetName() (string, error)
-	GetNetworkConnections() (IEnumNetworkConnections, error)
-	SetCategory(NLMNetworkCategory) error
-	SetDescription(string) error
 	SetName(string) error
+	GetDescription() (string, error)
+	SetDescription(string) error
+	GetNetworkId() (*windows.GUID, error)
+	GetDomainType() (NLMDomainType, error)
+	GetNetworkConnections() (IEnumNetworkConnections, error)
+	GetTimeCreatedAndConnected() (time.Time, time.Time, error)
+	// TODO: IsConnectedToInternet() (bool, error)
+	// TODO: IsConnected() (bool, error)
+	GetConnectivity() (NLMConnectivity, error)
+	GetCategory() (NLMNetworkCategory, error)
+	SetCategory(NLMNetworkCategory) error
 
 	Release()
 }
@@ -35,32 +40,42 @@ type iNetwork struct {
 	idispatch *ole.IDispatch
 }
 
-// GetCategory gets the category of this network.
-func (n *iNetwork) GetCategory() (NLMNetworkCategory, error) {
-	res, err := n.idispatch.CallMethod("GetCategory")
-	if err != nil {
-		return -1, fmt.Errorf("failed to call GetCategory method: %v", err)
-	}
-	networkCategoryAny := res.Value()
-	networkCategoryInt32, ok := networkCategoryAny.(int32)
-	if !ok {
-		return -1, fmt.Errorf("unexpected result type for GetCategory method: expected int32 but got %T", networkCategoryAny)
-	}
-	return NLMNetworkCategory(networkCategoryInt32), nil
+type iNetworkVtbl struct {
+	ole.IDispatchVtbl
+	GetName                    uintptr // id = 1, method
+	SetName                    uintptr // id = 2, method
+	GetDescription             uintptr // id = 3, method
+	SetDescription             uintptr // id = 4, method
+	GetNetworkId               uintptr // id = 5, method
+	GetDomainType              uintptr // id = 6, method
+	GetNetworkConnections      uintptr // id = 7, method
+	GetTimeCreatedAndConnected uintptr // id = 8, method
+	IsConnectedToInternet      uintptr // id = 9, property
+	IsConnected                uintptr // id = 10, property
+	GetConnectivity            uintptr // id = 11, method
+	GetCategory                uintptr // id = 12, method
+	SetCategory                uintptr // id = 13, method
 }
 
-// GetConnectivity gets the connectivity of this network.
-func (n *iNetwork) GetConnectivity() (NLMConnectivity, error) {
-	res, err := n.idispatch.CallMethod("GetConnectivity")
+func (n *iNetwork) vtable() *iNetworkVtbl {
+	return (*iNetworkVtbl)(unsafe.Pointer(n.idispatch.RawVTable))
+}
+
+// GetName gets the name of this network.
+func (n *iNetwork) GetName() (string, error) {
+	res, err := n.idispatch.CallMethod("GetName")
 	if err != nil {
-		return -1, fmt.Errorf("failed to call GetConnectivity method: %v", err)
+		return "", fmt.Errorf("failed to call GetName method: %v", err)
 	}
-	networkConnectivityAny := res.Value()
-	networkConnectivityInt32, ok := networkConnectivityAny.(int32)
-	if !ok {
-		return -1, fmt.Errorf("unexpected result type for GetConnectivity method: expected int32 but got %T", networkConnectivityAny)
+	return res.ToString(), nil
+}
+
+// SetName sets the name of this network.
+func (n *iNetwork) SetName(name string) error {
+	if _, err := n.idispatch.CallMethod("SetName", name); err != nil {
+		return fmt.Errorf("failed to call SetName method with value %s: %v", name, err)
 	}
-	return NLMConnectivity(networkConnectivityInt32), nil
+	return nil
 }
 
 // GetDescription gets the description/alias of this network.
@@ -70,6 +85,28 @@ func (n *iNetwork) GetDescription() (string, error) {
 		return "", fmt.Errorf("failed to call GetDescription method: %v", err)
 	}
 	return res.ToString(), nil
+}
+
+// SetDescription sets the description/alias of this network.
+func (n *iNetwork) SetDescription(descr string) error {
+	if _, err := n.idispatch.CallMethod("SetDescription", descr); err != nil {
+		return fmt.Errorf("failed to call SetDescription method with value %s: %v", descr, err)
+	}
+	return nil
+}
+
+// GetNetworkId returns the GUID od this network.
+func (n *iNetwork) GetNetworkId() (*windows.GUID, error) {
+	guid := windows.GUID{}
+	hr, _, _ := syscall.SyscallN(
+		n.vtable().GetNetworkId,
+		uintptr(unsafe.Pointer(n.idispatch)),
+		uintptr(unsafe.Pointer(&guid)),
+	)
+	if hr != 0 {
+		return nil, ole.NewError(hr)
+	}
+	return &guid, nil
 }
 
 // GetDomainType gets the domain type of this network.
@@ -84,15 +121,6 @@ func (n *iNetwork) GetDomainType() (NLMDomainType, error) {
 		return -1, fmt.Errorf("unexpected result type for GetDomainType method: expected int32 but got %T", domainTypeAny)
 	}
 	return NLMDomainType(domainTypeInt32), nil
-}
-
-// GetName gets the name of this network.
-func (n *iNetwork) GetName() (string, error) {
-	res, err := n.idispatch.CallMethod("GetName")
-	if err != nil {
-		return "", fmt.Errorf("failed to call GetName method: %v", err)
-	}
-	return res.ToString(), nil
 }
 
 // GetNetworkConnections returns the network connections for this network.
@@ -113,26 +141,57 @@ func (n *iNetwork) GetNetworkConnections() (IEnumNetworkConnections, error) {
 	return networkConnections, nil
 }
 
+// GetTimeCreatedAndConnected gets the timestamps of a network interface being created and connected.
+func (n *iNetwork) GetTimeCreatedAndConnected() (time.Time, time.Time, error) {
+	var createdLow, createdHigh, connectedLow, connectedHigh int64
+	hr, _, _ := syscall.SyscallN(
+		n.vtable().GetTimeCreatedAndConnected,
+		uintptr(unsafe.Pointer(n.idispatch)),
+		uintptr(unsafe.Pointer(&createdLow)),
+		uintptr(unsafe.Pointer(&createdHigh)),
+		uintptr(unsafe.Pointer(&connectedLow)),
+		uintptr(unsafe.Pointer(&connectedHigh)),
+	)
+	if hr != 0 {
+		return time.Time{}, time.Time{}, ole.NewError(hr)
+	}
+	created := wintime.ToTime(createdLow, createdHigh)
+	connected := wintime.ToTime(connectedLow, connectedHigh)
+	return created, connected, nil
+}
+
+// GetConnectivity gets the connectivity of this network.
+func (n *iNetwork) GetConnectivity() (NLMConnectivity, error) {
+	res, err := n.idispatch.CallMethod("GetConnectivity")
+	if err != nil {
+		return -1, fmt.Errorf("failed to call GetConnectivity method: %v", err)
+	}
+	networkConnectivityAny := res.Value()
+	networkConnectivityInt32, ok := networkConnectivityAny.(int32)
+	if !ok {
+		return -1, fmt.Errorf("unexpected result type for GetConnectivity method: expected int32 but got %T", networkConnectivityAny)
+	}
+	return NLMConnectivity(networkConnectivityInt32), nil
+}
+
+// GetCategory gets the category of this network.
+func (n *iNetwork) GetCategory() (NLMNetworkCategory, error) {
+	res, err := n.idispatch.CallMethod("GetCategory")
+	if err != nil {
+		return -1, fmt.Errorf("failed to call GetCategory method: %v", err)
+	}
+	networkCategoryAny := res.Value()
+	networkCategoryInt32, ok := networkCategoryAny.(int32)
+	if !ok {
+		return -1, fmt.Errorf("unexpected result type for GetCategory method: expected int32 but got %T", networkCategoryAny)
+	}
+	return NLMNetworkCategory(networkCategoryInt32), nil
+}
+
 // SetCategory sets the category of this network.
 func (n *iNetwork) SetCategory(category NLMNetworkCategory) (err error) {
 	if _, err := n.idispatch.CallMethod("SetCategory", int32(category)); err != nil {
 		return fmt.Errorf("failed to call SetCategory method with value %d: %v", int32(category), err)
-	}
-	return nil
-}
-
-// SetDescription sets the description/alias of this network.
-func (n *iNetwork) SetDescription(descr string) error {
-	if _, err := n.idispatch.CallMethod("SetDescription", descr); err != nil {
-		return fmt.Errorf("failed to call SetDescription method with value %s: %v", descr, err)
-	}
-	return nil
-}
-
-// SetName sets the name of this network.
-func (n *iNetwork) SetName(name string) error {
-	if _, err := n.idispatch.CallMethod("SetName", name); err != nil {
-		return fmt.Errorf("failed to call SetName method with value %s: %v", name, err)
 	}
 	return nil
 }
