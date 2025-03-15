@@ -26,8 +26,8 @@ type INetwork interface {
 	GetDomainType() (NLMDomainType, error)
 	GetNetworkConnections() (IEnumNetworkConnections, error)
 	GetTimeCreatedAndConnected() (time.Time, time.Time, error)
-	// TODO: IsConnectedToInternet() (bool, error)
-	// TODO: IsConnected() (bool, error)
+	IsConnectedToInternet() (bool, error)
+	IsConnected() (bool, error)
 	GetConnectivity() (NLMConnectivity, error)
 	GetCategory() (NLMNetworkCategory, error)
 	SetCategory(NLMNetworkCategory) error
@@ -141,7 +141,7 @@ func (n *iNetwork) GetNetworkConnections() (IEnumNetworkConnections, error) {
 	return networkConnections, nil
 }
 
-// GetTimeCreatedAndConnected gets the timestamps of a network interface being created and connected.
+// GetTimeCreatedAndConnected gets the timestamps of this network being created and connected.
 func (n *iNetwork) GetTimeCreatedAndConnected() (time.Time, time.Time, error) {
 	var createdLow, createdHigh, connectedLow, connectedHigh int64
 	hr, _, _ := syscall.SyscallN(
@@ -158,6 +158,34 @@ func (n *iNetwork) GetTimeCreatedAndConnected() (time.Time, time.Time, error) {
 	created := wintime.ToTime(createdLow, createdHigh)
 	connected := wintime.ToTime(connectedLow, connectedHigh)
 	return created, connected, nil
+}
+
+// IsConnectedToInternet returns whether the network is connected to the Internet.
+func (n *iNetwork) IsConnectedToInternet() (bool, error) {
+	res, err := n.idispatch.GetProperty("IsConnectedToInternet")
+	if err != nil {
+		return false, fmt.Errorf("failed to get IsConnectedToInternet property: %v", err)
+	}
+	isConnectedToInternetAny := res.Value()
+	isConnectedToInternetBool, ok := isConnectedToInternetAny.(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected result type for IsConnectedToInternet property: expected bool but got %T", isConnectedToInternetAny)
+	}
+	return isConnectedToInternetBool, nil
+}
+
+// IsConnected returns whether the network is connected.
+func (n *iNetwork) IsConnected() (bool, error) {
+	res, err := n.idispatch.GetProperty("IsConnected")
+	if err != nil {
+		return false, fmt.Errorf("failed to get IsConnected property: %v", err)
+	}
+	isConnectedAny := res.Value()
+	isConnectedBool, ok := isConnectedAny.(bool)
+	if !ok {
+		return false, fmt.Errorf("unexpected result type for IsConnected property: expected bool but got %T", isConnectedAny)
+	}
+	return isConnectedBool, nil
 }
 
 // GetConnectivity gets the connectivity of this network.
