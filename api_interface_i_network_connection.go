@@ -17,6 +17,7 @@ import (
 type INetworkConnection interface {
 	GetAdapterId() (*ole.GUID, error)
 	GetNetwork() (INetwork, error)
+
 	Release()
 }
 
@@ -39,11 +40,20 @@ type iNetworkConnectionVTable struct {
 
 // NewNetworkConnectionFromVariant returns the INetworkConnection object for a given ole.VARIANT.
 func NewNetworkConnectionFromVariant(variant *ole.VARIANT) (INetworkConnection, error) {
-	inc, err := asINetworkConnection(variant.ToIUnknown())
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert variant to NetworkConnection interface: %v", err)
+	iUnknown := variant.ToIUnknown()
+	if iUnknown == nil {
+		return nil, fmt.Errorf("expected variant to be of VT type %d, but got %d", ole.VT_UNKNOWN, variant.VT)
 	}
-	return inc, nil
+
+	// NOTE(@adrianosela): {DCB00005-570F-4A9B-8D69-199FDBA5723B} is the
+	// well-known Windows Global ID for the INetworkConnection interface.
+	interfaceGUID := ole.NewGUID("{DCB00005-570F-4A9B-8D69-199FDBA5723B}")
+
+	idispatch, err := iUnknown.QueryInterface(interfaceGUID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to use unknown interface as interface with GUID %s: %v", interfaceGUID.String(), err)
+	}
+	return &iNetworkConnection{idispatch: idispatch}, nil
 }
 
 // GetAdapterId returns the adapter GUID for a network connection.
@@ -71,27 +81,10 @@ func (nc *iNetworkConnection) GetNetwork() (INetwork, error) {
 	if hr < 0 {
 		return nil, ole.NewError(hr)
 	}
-	return &iNetwork{idispatch: idispatch}, nil
+	return INetworkFromIDispatch(idispatch), nil
 }
 
 // Release releases the INetworkConnection object.
 func (nc *iNetworkConnection) Release() {
 	nc.idispatch.Release()
-}
-
-func asINetworkConnection(unknown *ole.IUnknown) (*iNetworkConnection, error) {
-	if unknown == nil {
-		return nil, fmt.Errorf("unknown passed to asInterface was nil")
-	}
-
-	// NOTE(@adrianosela): {DCB00005-570F-4A9B-8D69-199FDBA5723B} is the
-	// well-known Windows Global ID for the NetworkConnection interface
-	// i.e. INetworkConnection.
-	interfaceGUID := ole.NewGUID("{DCB00005-570F-4A9B-8D69-199FDBA5723B}")
-
-	idispatch, err := unknown.QueryInterface(interfaceGUID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to use unknown interface as interface with GUID %s: %v", interfaceGUID.String(), err)
-	}
-	return &iNetworkConnection{idispatch: idispatch}, nil
 }

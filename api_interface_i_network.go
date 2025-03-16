@@ -57,8 +57,14 @@ type iNetworkVtbl struct {
 	SetCategory                uintptr // id = 13, method
 }
 
+// vtable returns the INetwork's VTable.
 func (n *iNetwork) vtable() *iNetworkVtbl {
 	return (*iNetworkVtbl)(unsafe.Pointer(n.idispatch.RawVTable))
+}
+
+// INetworkFromIDispatch returns an INetwork based on its IDispatch.
+func INetworkFromIDispatch(idispatch *ole.IDispatch) INetwork {
+	return &iNetwork{idispatch: idispatch}
 }
 
 // GetName gets the name of this network.

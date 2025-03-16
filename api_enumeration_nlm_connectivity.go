@@ -5,6 +5,8 @@ package wnlm
 import (
 	"sort"
 	"strings"
+
+	"github.com/adrianosela/wnlm/pkg/bits"
 )
 
 // NLMConnectivity represents the NLM_CONNECTIVITY enumeration (a set of flags that
@@ -34,25 +36,56 @@ const (
 	NLMConnectivityIPv6Internet = NLMConnectivity(0x0400)
 )
 
-func (c NLMConnectivity) IsDisconnected() bool     { return c == 0 }
-func (c NLMConnectivity) IsIPv4NoTraffic() bool    { return c.is(NLMConnectivityIPv4NoTraffic) }
-func (c NLMConnectivity) IsIPv6NoTraffic() bool    { return c.is(NLMConnectivityIPv6NoTraffic) }
-func (c NLMConnectivity) IsIPv4Subnet() bool       { return c.is(NLMConnectivityIPv4Subnet) }
-func (c NLMConnectivity) IsIPv4LocalNetwork() bool { return c.is(NLMConnectivityIPv4LocalNetwork) }
-func (c NLMConnectivity) IsIPv4Internet() bool     { return c.is(NLMConnectivityIPv4Internet) }
-func (c NLMConnectivity) IsIPv6Subnet() bool       { return c.is(NLMConnectivityIPv6Subnet) }
-func (c NLMConnectivity) IsIPv6LocalNetwork() bool { return c.is(NLMConnectivityIPv6LocalNetwork) }
-func (c NLMConnectivity) IsIPv6Internet() bool     { return c.is(NLMConnectivityIPv6Internet) }
+// IsDisconnected returns true if the NLMConnectivity has the disconnected flag set.
+func (c NLMConnectivity) IsDisconnected() bool {
+	return c == 0
+}
 
-// is checks if the connectivity includes the specific flag
-func (c NLMConnectivity) is(flag NLMConnectivity) bool { return c&flag == flag }
+// IsIPv4NoTraffic returns true if the NLMConnectivity has IPv4NoTraffic flag set.
+func (c NLMConnectivity) IsIPv4NoTraffic() bool {
+	return bits.AreSet(c, NLMConnectivityIPv4NoTraffic)
+}
 
-// Strings provides a string representation of the connectivity status
+// IsIPv6NoTraffic returns true if the NLMConnectivity has the IPv6NoTraffic flag set.
+func (c NLMConnectivity) IsIPv6NoTraffic() bool {
+	return bits.AreSet(c, NLMConnectivityIPv6NoTraffic)
+}
+
+// IsIPv4Subnet returns true if the NLMConnectivity has the IPv4Subnet flag set.
+func (c NLMConnectivity) IsIPv4Subnet() bool {
+	return bits.AreSet(c, NLMConnectivityIPv4Subnet)
+}
+
+// IsIPv4LocalNetwork returns true if the NLMConnectivity has the IPv4LocalNetwork flag set.
+func (c NLMConnectivity) IsIPv4LocalNetwork() bool {
+	return bits.AreSet(c, NLMConnectivityIPv4LocalNetwork)
+}
+
+// IsIPv4Internet returns true if the NLMConnectivity has the IPv4Internet flag set.
+func (c NLMConnectivity) IsIPv4Internet() bool {
+	return bits.AreSet(c, NLMConnectivityIPv4Internet)
+}
+
+// IsIPv6Subnet returns true if the NLMConnectivity has the IPv6Subnet flag set.
+func (c NLMConnectivity) IsIPv6Subnet() bool {
+	return bits.AreSet(c, NLMConnectivityIPv6Subnet)
+}
+
+// IsIPv6LocalNetwork returns true if the NLMConnectivity has the IPv6LocalNetwork flag set.
+func (c NLMConnectivity) IsIPv6LocalNetwork() bool {
+	return bits.AreSet(c, NLMConnectivityIPv6LocalNetwork)
+}
+
+// IsIPv6Internet returns true if the NLMConnectivity has the IPv6Internet flag set.
+func (c NLMConnectivity) IsIPv6Internet() bool {
+	return bits.AreSet(c, NLMConnectivityIPv6Internet)
+}
+
+// Strings provides a string representation of the NLMConnectivity status.
 func (c NLMConnectivity) String() string {
 	if c.IsDisconnected() {
 		return "Disconnected"
 	}
-
 	flags := []string{}
 	for flag, check := range map[string]bool{
 		"IPv4NoTraffic":    c.IsIPv4NoTraffic(),

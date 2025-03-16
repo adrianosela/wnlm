@@ -14,7 +14,7 @@ import (
 //
 // The Windows Global Unique Identifier (GUID) for this interface is DCB00006-570F-4A9B-8D69-199FDBA5723B.
 type IEnumNetworkConnections interface {
-	ForEach(func(INetworkConnection) bool)
+	ForEach(func(int, INetworkConnection) bool)
 	Size() int
 	Release()
 }
@@ -46,9 +46,9 @@ func NewNetworkConnections(idispatch *ole.IDispatch) (IEnumNetworkConnections, e
 }
 
 // ForEach iterates over each INetworkConnection represented by IEnumNetworkConnections.
-func (nc *iEnumNetworkConnections) ForEach(do func(INetworkConnection) bool) {
-	for _, networkConnection := range nc.conns {
-		if keepGoing := do(networkConnection); !keepGoing {
+func (nc *iEnumNetworkConnections) ForEach(do func(int, INetworkConnection) bool) {
+	for i, networkConnection := range nc.conns {
+		if keepGoing := do(i, networkConnection); !keepGoing {
 			return
 		}
 	}

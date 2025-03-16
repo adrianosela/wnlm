@@ -9,7 +9,7 @@ Go bindings for the Windows [Network List Manager API](https://learn.microsoft.c
 
 > The Network List Manager API enables applications to retrieve a list of available network connections. Applications can filter networks, based on attributes and signatures, and choose the networks best suited to their task. The Network List Manager infrastructure notifies applications of changes in the network environment, thus enabling applications to dynamically update network connections.
 
-This is built on top of [github.com/go-ole/go-ole](github.com/go-ole/go-ole) (Go bindings for Windows COM using shared libraries instead of cgo by Yasuhiro Matsumoto), using the Network List Manager API interface definitions from [gitlab.winehq.org/wine/wine](https://gitlab.winehq.org/wine/wine/-/blob/1c4350ac/include/netlistmgr.idl).
+This is built on top of [github.com/go-ole/go-ole](https://github.com/go-ole/go-ole) (Go bindings for Windows COM using shared libraries instead of cgo), using the Network List Manager API interface definitions from [gitlab.winehq.org/wine/wine](https://gitlab.winehq.org/wine/wine/-/blob/1c4350ac/include/netlistmgr.idl).
 
 ### Usage
 
