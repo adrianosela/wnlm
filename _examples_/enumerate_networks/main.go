@@ -32,86 +32,114 @@ func main() {
 
 		net, err2 := conn.GetNetwork()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network for conn: %v", err2)
+			err = fmt.Errorf("failed to get INetwork for INetworkConnection: %v", err2)
 			return false
 		}
 		defer net.Release()
 
-		netName, err2 := net.GetName()
+		adapterID, err2 := conn.GetAdapterId()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network name for network: %v", err2)
+			err = fmt.Errorf("failed to get adapter ID for INetworkConnection: %v", err2)
 			return false
 		}
-		fmt.Printf("Name: \"%s\"\n", netName)
+		fmt.Printf("INetworkConnection Adapter ID: \"%s\"\n", adapterID.String())
+
+		connID, err2 := conn.GetConnectionId()
+		if err2 != nil {
+			err = fmt.Errorf("failed to get connection ID for INetworkConnection: %v", err2)
+			return false
+		}
+		fmt.Printf("INetworkConnection Connection ID: \"%s\"\n", connID.String())
+
+		isConnectedToInternetConn, err2 := conn.IsConnectedToInternet()
+		if err2 != nil {
+			err = fmt.Errorf("failed to get isConnectedToInternet on INetworkConnection %s", err2)
+			return false
+		}
+		fmt.Printf("INetworkConnection Connected to Internet: %t\n", isConnectedToInternetConn)
+
+		isConnectedConn, err2 := conn.IsConnected()
+		if err2 != nil {
+			err = fmt.Errorf("failed to get isConnected on INetworkConnection: %v", err2)
+			return false
+		}
+		fmt.Printf("INetworkConnection Connected: %t\n", isConnectedConn)
+
+		netName, err2 := net.GetName()
+		if err2 != nil {
+			err = fmt.Errorf("failed to get name for INetwork: %v", err2)
+			return false
+		}
+		fmt.Printf("INetwork Name: \"%s\"\n", netName)
 
 		netDesc, err2 := net.GetDescription()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network description for network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get description for INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Description: \"%s\"\n", netDesc)
+		fmt.Printf("INetwork Description: \"%s\"\n", netDesc)
 
 		netCategory, err2 := net.GetCategory()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network category on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get category for INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Category: %s\n", netCategory.String())
+		fmt.Printf("INetwork Category: %s\n", netCategory.String())
 
 		netDomainType, err2 := net.GetDomainType()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network domain type on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get domain type for INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Domain Type: %s\n", netDomainType.String())
+		fmt.Printf("INetwork Domain Type: %s\n", netDomainType.String())
 
 		netConnectivity, err2 := net.GetConnectivity()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network connectivity on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get connectivity for INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Connectivity: %s\n", netConnectivity.String())
+		fmt.Printf("INetwork Connectivity: %s\n", netConnectivity.String())
 
 		nconns, err2 := net.GetNetworkConnections()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network connections on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get IEnumNetworkConnections for INetwork %s: %v", netName, err2)
 			return false
 		}
 		defer nconns.Release()
-		fmt.Printf("Network Connections: %d\n", nconns.Size())
+		fmt.Printf("INetwork (# of) Network Connections: %d\n", nconns.Size())
 
 		guid, err2 := net.GetNetworkId()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network id on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get id for INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Network ID: %s\n", guid.String())
+		fmt.Printf("INetwork Network ID: %s\n", guid.String())
 
 		created, connected, err2 := net.GetTimeCreatedAndConnected()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network created/connected timestamps on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get created/connected timestamps for INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Created At: %s\n", created.String())
-		fmt.Printf("Connected At: %s\n", connected.String())
+		fmt.Printf("INetwork Created At: %s\n", created.String())
+		fmt.Printf("INetwork Connected At: %s\n", connected.String())
 
 		isConnectedToInternet, err2 := net.IsConnectedToInternet()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network isConnectedToInternet on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get isConnectedToInternet on INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Connected to Internet: %t\n", isConnectedToInternet)
+		fmt.Printf("INetwork Connected to Internet: %t\n", isConnectedToInternet)
 
 		isConnected, err2 := net.IsConnected()
 		if err2 != nil {
-			err = fmt.Errorf("failed to get network isConnected on network %s: %v", netName, err2)
+			err = fmt.Errorf("failed to get isConnected on INetwork %s: %v", netName, err2)
 			return false
 		}
-		fmt.Printf("Connected: %t\n", isConnected)
+		fmt.Printf("INetwork Connected: %t\n", isConnected)
 
 		return true // continue
 	})
 	if err != nil {
-		log.Fatalf("failed while iterating over network connections: %v", err)
+		log.Fatalf("failed while iterating over IEnumNetworkConnection: %v", err)
 	}
 }
